@@ -3,26 +3,50 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { createClient } from "@/lib/supabase/client";
 
 interface Props {
   productId: string;
+  title: string;
   price: number;
   status: string;
 }
 
-export default function ProductActions({ productId, price, status }: Props) {
+export default function ProductActions({ productId, title, price, status }: Props) {
   const router = useRouter();
   const [liked, setLiked] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   async function handleDelete() {
+    const confirmed = window.confirm("정말 삭제하겠습니까?\n삭제된 상품은 복구할 수 없습니다.");
+    if (!confirmed) return;
     setDeleting(true);
     const supabase = createClient();
     await supabase.from("products").delete().eq("id", productId);
     router.push("/");
+  }
+
+  async function handlePayment() {
+    setPaying(true);
+    try {
+      const tossPayments = await loadTossPayments(
+        process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY!
+      );
+      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: price },
+        orderId: crypto.randomUUID(),
+        orderName: title,
+        successUrl: `${window.location.origin}/payment/success`,
+        failUrl: `${window.location.origin}/payment/fail`,
+      });
+    } catch {
+      setPaying(false);
+    }
   }
 
   const isSoldOut = status === "판매완료";
@@ -54,12 +78,13 @@ export default function ProductActions({ productId, price, status }: Props) {
             <p className="text-xs text-gray-400">가격 제안 불가</p>
           </div>
 
-          {/* 채팅하기 버튼 */}
+          {/* 결제하기 버튼 */}
           <button
-            disabled={isSoldOut}
+            onClick={handlePayment}
+            disabled={isSoldOut || paying}
             className="px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isSoldOut ? "거래 완료" : "채팅하기"}
+            {isSoldOut ? "거래 완료" : paying ? "결제 중..." : "결제하기"}
           </button>
         </div>
       </div>
@@ -87,40 +112,17 @@ export default function ProductActions({ productId, price, status }: Props) {
                 수정하기
               </Link>
               <button
-                onClick={() => { setShowMenu(false); setShowConfirm(true); }}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                onClick={() => { setShowMenu(false); handleDelete(); }}
+                disabled={deleting}
+                className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
               >
-                삭제하기
+                {deleting ? "삭제 중..." : "삭제하기"}
               </button>
             </div>
           </>
         )}
       </div>
 
-      {/* 삭제 확인 모달 */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 mb-2">상품을 삭제할까요?</h3>
-            <p className="text-sm text-gray-500 mb-6">삭제된 상품은 복구할 수 없습니다.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
-              >
-                {deleting ? "삭제 중..." : "삭제"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

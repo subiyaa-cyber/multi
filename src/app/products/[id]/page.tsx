@@ -81,6 +81,7 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* ProductActions: 더보기 버튼 + 하단 액션바 */}
         <ProductActions
           productId={product.id}
+          title={product.title}
           price={product.price}
           status={product.status}
         />

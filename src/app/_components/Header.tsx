@@ -1,6 +1,13 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import UserMenu from "./UserMenu";
 
-export default function Header() {
+export default async function Header() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <header className="sticky top-0 z-50 bg-teal-400 shadow-sm">
       <div className="max-w-6xl mx-auto px-4">
@@ -30,13 +37,23 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* 액션 버튼 */}
-          <div className="flex items-center gap-3">
-            <button className="text-sm font-medium text-white/80 hover:text-white transition-colors">
-              로그인
-            </button>
-            <Link href="/products/new" className="text-sm font-semibold bg-white text-teal-600 px-4 py-2 rounded-full hover:bg-teal-50 transition-colors shadow-sm">
-              + 상품 등록
+          {/* 액션 */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {user ? (
+              <UserMenu user={user} />
+            ) : (
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+              >
+                로그인
+              </Link>
+            )}
+            <Link
+              href="/products/new"
+              className="text-xs sm:text-sm font-semibold bg-white text-teal-600 px-3 sm:px-4 py-2 rounded-full hover:bg-teal-50 transition-colors shadow-sm whitespace-nowrap"
+            >
+              + 등록
             </Link>
           </div>
         </div>
