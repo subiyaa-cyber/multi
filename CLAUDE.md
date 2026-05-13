@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## 프로젝트 개요
 
-**고구마마켓** — 중고 물품을 사고팔 수 있는 웹 서비스.
+**스듯스토어** — 중고 물품을 사고팔 수 있는 웹 서비스.
 
 ## 기술 스택
 
@@ -76,4 +76,19 @@ Supabase 테이블 타입은 `supabase gen types typescript` 명령으로 생성
 
 ## 데이터베이스
 
-스키마는 추후 작성 예정. 변경 시 Supabase MCP를 통해 직접 적용합니다.
+변경 시 Supabase MCP(`apply_migration`)를 통해 직접 적용합니다.
+
+### products
+
+중고 상품 목록 테이블. RLS는 로그인 기능 구현 후 정책과 함께 활성화 예정 (현재 비활성).
+
+| 컬럼 | 타입 | 조건 |
+|------|------|------|
+| `id` | UUID | PK, `gen_random_uuid()` |
+| `title` | TEXT | NOT NULL |
+| `description` | TEXT | nullable |
+| `price` | INTEGER | NOT NULL |
+| `image_url` | TEXT | nullable |
+| `seller_name` | TEXT | NOT NULL |
+| `status` | TEXT | NOT NULL, 기본값 `'판매중'`, CHECK (`판매중`/`예약중`/`판매완료`) |
+| `created_at` | TIMESTAMPTZ | NOT NULL, `now()` |

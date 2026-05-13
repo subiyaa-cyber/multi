@@ -1,65 +1,90 @@
-import Image from "next/image";
+import { createClient } from "@/lib/supabase/server";
+import { Product, ProductCategory, CATEGORY_LIST } from "@/types/product";
+import Header from "./_components/Header";
+import ProductCard from "./_components/ProductCard";
+import CategorySidebar from "./_components/CategorySidebar";
 
-export default function Home() {
+interface Props {
+  searchParams: Promise<{ category?: string }>;
+}
+
+export default async function Home({ searchParams }: Props) {
+  const { category } = await searchParams;
+  const supabase = await createClient();
+
+  // 카테고리별 상품 수 집계
+  const { data: allProducts } = await supabase
+    .from("products")
+    .select("category");
+
+  const counts = (allProducts ?? []).reduce<Partial<Record<ProductCategory, number>>>(
+    (acc, p) => {
+      const cat = p.category as ProductCategory;
+      acc[cat] = (acc[cat] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
+
+  // 선택된 카테고리로 필터링
+  const query = supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const validCategory = CATEGORY_LIST.map((c) => c.label).includes(
+    category as ProductCategory
+  )
+    ? (category as ProductCategory)
+    : null;
+
+  if (validCategory) {
+    query.eq("category", validCategory);
+  }
+
+  const { data: products } = await query;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      <Header />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 py-8 flex gap-8">
+          {/* 좌측 카테고리 사이드바 */}
+          <CategorySidebar
+            selected={validCategory ?? ""}
+            counts={counts}
+            total={allProducts?.length ?? 0}
+          />
+
+          {/* 우측 상품 목록 */}
+          <main className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-bold text-gray-900">
+                {validCategory ?? "전체 상품"}{" "}
+                <span className="text-teal-500">{products?.length ?? 0}</span>
+              </h2>
+            </div>
+
+            {products && products.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
+                {products.map((product: Product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-32 gap-4 bg-white rounded-2xl border border-dashed border-teal-200">
+                <span className="text-5xl">🛍️</span>
+                <p className="text-gray-500 font-medium">등록된 상품이 없습니다.</p>
+                <p className="text-sm text-gray-400">
+                  {validCategory
+                    ? `아직 ${validCategory} 카테고리에 상품이 없어요.`
+                    : "첫 번째 상품을 등록해보세요!"}
+                </p>
+              </div>
+            )}
+          </main>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }
